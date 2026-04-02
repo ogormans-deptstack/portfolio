@@ -8,7 +8,7 @@ output "zone_id" {
 }
 
 output "worker_name" {
-  value = cloudflare_worker_script.portfolio.name
+  value = cloudflare_workers_script.portfolio.script_name
 }
 
 output "site_url" {

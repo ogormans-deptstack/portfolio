@@ -1,26 +1,55 @@
 resource "cloudflare_zone" "main" {
-  account_id = var.cloudflare_account_id
-  zone       = var.domain
-  plan       = "free"
+  account = {
+    id = var.cloudflare_account_id
+  }
+  name = var.domain
+  type = "full"
 }
 
-resource "cloudflare_zone_settings_override" "main" {
-  zone_id = cloudflare_zone.main.id
+locals {
+  zone_settings_on = toset([
+    "always_use_https",
+    "automatic_https_rewrites",
+    "brotli",
+    "http3",
+    "0rtt",
+  ])
+}
 
-  settings {
-    ssl                      = "full"
-    always_use_https         = "on"
-    min_tls_version          = "1.2"
-    automatic_https_rewrites = "on"
-    http3                    = "on"
-    zero_rtt                 = "on"
-    brotli                   = "on"
-    minify {
-      css  = "on"
-      js   = "on"
-      html = "on"
-    }
-    security_header {
+resource "cloudflare_zone_setting" "on" {
+  for_each   = local.zone_settings_on
+  zone_id    = cloudflare_zone.main.id
+  setting_id = each.key
+  value      = "on"
+}
+
+resource "cloudflare_zone_setting" "ssl" {
+  zone_id    = cloudflare_zone.main.id
+  setting_id = "ssl"
+  value      = "full"
+}
+
+resource "cloudflare_zone_setting" "min_tls_version" {
+  zone_id    = cloudflare_zone.main.id
+  setting_id = "min_tls_version"
+  value      = "1.2"
+}
+
+resource "cloudflare_zone_setting" "minify" {
+  zone_id    = cloudflare_zone.main.id
+  setting_id = "minify"
+  value = {
+    css  = "on"
+    js   = "on"
+    html = "on"
+  }
+}
+
+resource "cloudflare_zone_setting" "security_header" {
+  zone_id    = cloudflare_zone.main.id
+  setting_id = "security_header"
+  value = {
+    strict_transport_security = {
       enabled            = true
       include_subdomains = true
       max_age            = 31536000
@@ -30,7 +59,7 @@ resource "cloudflare_zone_settings_override" "main" {
   }
 }
 
-resource "cloudflare_record" "google_mx_1" {
+resource "cloudflare_dns_record" "google_mx_1" {
   zone_id  = cloudflare_zone.main.id
   name     = "@"
   type     = "MX"
@@ -39,7 +68,7 @@ resource "cloudflare_record" "google_mx_1" {
   ttl      = 3600
 }
 
-resource "cloudflare_record" "google_mx_2" {
+resource "cloudflare_dns_record" "google_mx_2" {
   zone_id  = cloudflare_zone.main.id
   name     = "@"
   type     = "MX"
@@ -48,7 +77,7 @@ resource "cloudflare_record" "google_mx_2" {
   ttl      = 3600
 }
 
-resource "cloudflare_record" "google_mx_3" {
+resource "cloudflare_dns_record" "google_mx_3" {
   zone_id  = cloudflare_zone.main.id
   name     = "@"
   type     = "MX"
@@ -57,7 +86,7 @@ resource "cloudflare_record" "google_mx_3" {
   ttl      = 3600
 }
 
-resource "cloudflare_record" "google_mx_4" {
+resource "cloudflare_dns_record" "google_mx_4" {
   zone_id  = cloudflare_zone.main.id
   name     = "@"
   type     = "MX"
@@ -66,7 +95,7 @@ resource "cloudflare_record" "google_mx_4" {
   ttl      = 3600
 }
 
-resource "cloudflare_record" "google_mx_5" {
+resource "cloudflare_dns_record" "google_mx_5" {
   zone_id  = cloudflare_zone.main.id
   name     = "@"
   type     = "MX"
@@ -75,7 +104,7 @@ resource "cloudflare_record" "google_mx_5" {
   ttl      = 3600
 }
 
-resource "cloudflare_record" "spf" {
+resource "cloudflare_dns_record" "spf" {
   zone_id = cloudflare_zone.main.id
   name    = "@"
   type    = "TXT"
@@ -83,7 +112,7 @@ resource "cloudflare_record" "spf" {
   ttl     = 3600
 }
 
-resource "cloudflare_record" "dmarc" {
+resource "cloudflare_dns_record" "dmarc" {
   zone_id = cloudflare_zone.main.id
   name    = "_dmarc"
   type    = "TXT"
@@ -91,7 +120,7 @@ resource "cloudflare_record" "dmarc" {
   ttl     = 3600
 }
 
-resource "cloudflare_record" "google_dkim" {
+resource "cloudflare_dns_record" "google_dkim" {
   zone_id = cloudflare_zone.main.id
   name    = "google._domainkey"
   type    = "TXT"
