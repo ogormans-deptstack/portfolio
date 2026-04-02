@@ -1,0 +1,2 @@
+gcp_project_id        = "your-gcp-project-id"
+cloudflare_account_id = "your-cloudflare-account-id"

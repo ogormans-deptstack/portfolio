@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sean O'Gorman | Infrastructure Engineer</title>
+  
+  <meta name="description" content="Portfolio of Sean O'Gorman, Infrastructure Engineer & Open Source Contributor based in Ireland.">
+  <meta property="og:title" content="Sean O'Gorman | Infrastructure Engineer">
+  <meta property="og:description" content="Portfolio of Sean O'Gorman, Infrastructure Engineer & Open Source Contributor based in Ireland.">
+  <meta property="og:type" content="website">
+  
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+  <header>
+    <div class="container">
+      <nav>
+        <a href="#" class="nav-brand">&lt; gorm-ogham /&gt;</a>
+        <div class="nav-links">
+          <a href="#about">01. About</a>
+          <a href="#skills">02. Skills</a>
+          <a href="#oss">03. OSS</a>
+          <a href="#contact">04. Contact</a>
+        </div>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero container">
+      <span class="hero-subtitle">SEAN O'GORMAN</span>
+      <h1 class="hero-title">Infrastructure Engineer &<br>Open Source Contributor</h1>
+      <div class="hero-location">
+        <span>Based in Ireland</span>
+      </div>
+      <p class="hero-tagline">Building reliable systems at the intersection of cloud infrastructure, developer tooling, and AI-assisted engineering.</p>
+    </section>
+
+    <section id="about" class="section container">
+      <div class="section-header">
+        <span class="section-num">01.</span>
+        <h2>About Me</h2>
+      </div>
+      <div style="max-width: 800px;">
+        <p>I am an infrastructure engineer with deep experience across Kubernetes, cloud platforms (GCP, Azure, AWS), and infrastructure-as-code paradigms. My focus is on robust system architecture, not just deploying components, but ensuring they run predictably at scale.</p>
+        <p>As an active open source contributor, I've built a track record of earning trust in major communities through thoughtful, well-tested contributions rather than just code drops. I understand the social mechanics of open source as well as the technical requirements.</p>
+        <p>Currently, my work is heavily focused on bridging traditional infrastructure with AI agent orchestration—creating multi-model orchestration systems and robust developer tooling.</p>
+      </div>
+    </section>
+
+    <section id="skills" class="section container">
+      <div class="section-header">
+        <span class="section-num">02.</span>
+        <h2>Skills & Expertise</h2>
+      </div>
+      <div class="grid">
+        
+        <div class="card">
+          <div class="card-icon">{k8s}</div>
+          <h3>Kubernetes & Cloud Native</h3>
+          <p>kubectl internals, sig-cli KEP contributor, CRD patterns, and Crossplane-adjacent architectures.</p>
+          <div class="skill-tags">
+            <span class="skill-tag">kubectl</span>
+            <span class="skill-tag">Go</span>
+            <span class="skill-tag">CRDs</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-icon">{iac}</div>
+          <h3>Infrastructure as Code</h3>
+          <p>Designing stateful infrastructure across Azure and GCP using OpenTofu and Terraform automation platforms.</p>
+          <div class="skill-tags">
+            <span class="skill-tag">OpenTofu</span>
+            <span class="skill-tag">Azure</span>
+            <span class="skill-tag">GCP</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-icon">{go}</div>
+          <h3>Go Engineering</h3>
+          <p>Production CLI tooling, Terraform provider development, and resilient Kubernetes controller patterns.</p>
+          <div class="skill-tags">
+            <span class="skill-tag">Golang</span>
+            <span class="skill-tag">CLI</span>
+            <span class="skill-tag">Providers</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-icon">{ai}</div>
+          <h3>AI Agent Tooling</h3>
+          <p>Developing OpenCode plugins, MCP extensions, and reliable multi-model orchestration frameworks.</p>
+          <div class="skill-tags">
+            <span class="skill-tag">Agents</span>
+            <span class="skill-tag">MCP</span>
+            <span class="skill-tag">TypeScript</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-icon">{dev}</div>
+          <h3>Developer Tooling</h3>
+          <p>Shell installers for the webi ecosystem, CI/CD pipelines, and GitHub Actions optimization.</p>
+          <div class="skill-tags">
+            <span class="skill-tag">Bash</span>
+            <span class="skill-tag">CI/CD</span>
+            <span class="skill-tag">webi</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-icon">{api}</div>
+          <h3>Backend Services</h3>
+          <p>Building reliable API services and integration layers using Python/Django and Node.js.</p>
+          <div class="skill-tags">
+            <span class="skill-tag">Python</span>
+            <span class="skill-tag">Django</span>
+            <span class="skill-tag">Node.js</span>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <section id="oss" class="section container">
+      <div class="section-header">
+        <span class="section-num">03.</span>
+        <h2>Open Source Contributions</h2>
+      </div>
+      <div id="oss-live" class="grid"></div>
+      <noscript>
+        <div class="grid">
+          <div class="card">
+            <div class="oss-meta">
+              <span>kubernetes/kubernetes</span>
+              <span>Open</span>
+            </div>
+            <h3>kubectl explain --example</h3>
+            <p>Proposed and implementing a new kubectl command to show resource examples. Engaged with sig-cli leadership. Go implementation with 14 passing tests.</p>
+          </div>
+          <div class="card">
+            <div class="oss-meta">
+              <span>opentofu/opentofu</span>
+              <span>In Review</span>
+            </div>
+            <h3>Pretty-print local state</h3>
+            <p>Improving the developer experience of local state files by making state git diffs readable and deterministically formatted.</p>
+          </div>
+          <div class="card">
+            <div class="oss-meta">
+              <span>webinstall/webi-installers</span>
+              <span>In Review</span>
+            </div>
+            <h3>Webi Ecosystem Installers</h3>
+            <p>Contributing installers for developer tools (opencode, crush) to the webinstall ecosystem.</p>
+          </div>
+        </div>
+      </noscript>
+    </section>
+
+    <section id="contact" class="section container" style="border-bottom: none;">
+      <div class="section-header">
+        <span class="section-num">04.</span>
+        <h2>Get in Touch</h2>
+      </div>
+      <div class="contact-wrapper">
+        <p>I'm always interested in discussing infrastructure challenges, AI tooling, and open source opportunities.</p>
+        <br>
+        <a href="mailto:contact@gorm-ogham-consulting-webhook.com" class="btn">Send an Email</a>
+        <br><br><br>
+        <a href="https://github.com/seanogor" target="_blank" rel="noopener noreferrer" class="mono text-accent">github.com/seanogor</a>
+      </div>
+    </section>
+
+  </main>
+
+  <footer>
+    <div class="container">
+      <p>This site is deployed on Cloudflare Workers. Infrastructure managed with OpenTofu. Source on GitHub.</p>
+      <div class="footer-stats">
+        <span>[ JS: &lt;1KB ]</span>
+        <span>[ Infra Cost: $0/mo ]</span>
+        <span>[ Live PR Feed ]</span>
+      </div>
+    </div>
+  </footer>
+
+<script>
+(function () {
+  var grid = document.getElementById("oss-live");
+  if (!grid) return;
+
+  fetch("/api/prs")
+    .then(function (r) { return r.json(); })
+    .then(function (prs) {
+      if (!prs.length) return;
+      grid.innerHTML = prs.slice(0, 8).map(function (pr) {
+        var badge = pr.state === "merged" ? "Merged"
+          : pr.state === "closed" ? "Closed"
+          : "Open";
+        var date = new Date(pr.updated).toLocaleDateString("en-US", {
+          month: "short", day: "numeric", year: "numeric"
+        });
+        return '<a href="' + pr.url + '" target="_blank" rel="noopener noreferrer" class="card card-link">'
+          + '<div class="oss-meta"><span>' + pr.repo + '</span><span>' + badge + '</span></div>'
+          + '<h3>' + pr.title + '</h3>'
+          + '<p class="text-sm" style="margin-top:auto">' + date + ' · ' + pr.comments + ' comments</p>'
+          + '</a>';
+      }).join("");
+    })
+    .catch(function () {});
+})();
+</script>
+</body>
+</html>

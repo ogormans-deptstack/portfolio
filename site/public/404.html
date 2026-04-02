@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>404 Not Found | Sean O'Gorman</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    .not-found {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+    
+    .status-code {
+      font-family: var(--font-mono);
+      font-size: clamp(4rem, 10vw, 8rem);
+      color: var(--accent-color);
+      line-height: 1;
+      margin-bottom: var(--space-md);
+    }
+    
+    .status-msg {
+      font-size: clamp(1.5rem, 3vw, 2.5rem);
+      margin-bottom: var(--space-lg);
+    }
+  </style>
+</head>
+<body>
+
+  <main class="not-found container">
+    <div class="status-code">404</div>
+    <h1 class="status-msg">Resource Not Found</h1>
+    <p>The requested route could not be resolved by the infrastructure.</p>
+    <br>
+    <a href="/" class="btn">Return to Root</a>
+  </main>
+
+</body>
+</html>

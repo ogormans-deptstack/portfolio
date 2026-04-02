@@ -1,0 +1,20 @@
+name = "portfolio"
+main = "src/worker.mjs"
+compatibility_date = "2026-04-02"
+compatibility_flags = ["nodejs_compat"]
+
+[assets]
+directory = "./public"
+not_found_handling = "404-page"
+run_worker_first = ["/api/*"]
+
+[[kv_namespaces]]
+binding = "KV"
+id = "REPLACE_AFTER_TOFU_APPLY"
+preview_id = "REPLACE_FOR_LOCAL_DEV"
+
+[triggers]
+crons = ["0 */6 * * *"]
+
+[vars]
+GITHUB_USERNAMES = "ogormans-deptstack,seanogor"
