@@ -19,21 +19,34 @@ jobs:
       run:
         working-directory: infra
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: asdf-vm/actions/install@v4
 
-      - id: auth
+      - name: Check GCP configuration
+        id: check
+        run: |
+          if [ -z "${{ vars.GCP_WIF_PROVIDER }}" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::GCP not bootstrapped — skipping plan. Run bootstrap.sh first."
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.check.outputs.configured == 'true'
+        id: auth
         uses: google-github-actions/auth@v3
         with:
           project_id: ${{ vars.GCP_PROJECT_ID }}
           workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
           service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
 
-      - name: tofu init
+      - if: steps.check.outputs.configured == 'true'
+        name: tofu init
         run: tofu init
 
-      - name: tofu plan
+      - if: steps.check.outputs.configured == 'true'
+        name: tofu plan
         run: tofu plan -no-color
         env:
           TF_VAR_gcp_project_id: ${{ vars.GCP_PROJECT_ID }}
@@ -43,18 +56,30 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: asdf-vm/actions/install@v4
 
-      - id: auth
+      - name: Check GCP configuration
+        id: check
+        run: |
+          if [ -z "${{ vars.GCP_WIF_PROVIDER }}" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::GCP not bootstrapped — skipping infra deploy. Run bootstrap.sh first."
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.check.outputs.configured == 'true'
+        id: auth
         uses: google-github-actions/auth@v3
         with:
           project_id: ${{ vars.GCP_PROJECT_ID }}
           workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
           service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
 
-      - name: tofu apply
+      - if: steps.check.outputs.configured == 'true'
+        name: tofu apply
         working-directory: infra
         run: |
           tofu init
@@ -67,7 +92,8 @@ jobs:
         working-directory: site
         run: npm ci
 
-      - name: Deploy worker
+      - if: steps.check.outputs.configured == 'true'
+        name: Deploy worker
         working-directory: site
         run: npx wrangler deploy
         env:
