@@ -9,9 +9,7 @@ terraform {
   }
 
   backend "http" {
-    address        = "https://pub-957a71c8739c4f92b9f2d99b0ef04649.r2.dev/portfolio/terraform.tfstate"
-    lock_address   = "https://pub-957a71c8739c4f92b9f2d99b0ef04649.r2.dev/portfolio/terraform.tfstate"
-    unlock_address = "https://pub-957a71c8739c4f92b9f2d99b0ef04649.r2.dev/portfolio/terraform.tfstate"
+    address = "https://pub-957a71c8739c4f92b9f2d99b0ef04649.r2.dev/portfolio/terraform.tfstate"
   }
 
   encryption {
@@ -24,13 +22,9 @@ terraform {
     }
 
     state {
-      method = method.aes_gcm.state_enc
-      fallback {
-        method = method.unencrypted.migration
-      }
+      method   = method.aes_gcm.state_enc
+      enforced = true
     }
-
-    method "unencrypted" "migration" {}
   }
 }
 
