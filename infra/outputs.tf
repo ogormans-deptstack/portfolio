@@ -14,8 +14,8 @@ output "site_url" {
 }
 
 output "worker_name" {
-  value       = cloudflare_workers_script.portfolio.script_name
-  description = "Deployed Cloudflare Worker script name"
+  value       = "portfolio"
+  description = "Cloudflare Worker script name (deployed via wrangler)"
 }
 
 output "zone_id" {

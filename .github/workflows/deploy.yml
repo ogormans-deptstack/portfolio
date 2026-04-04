@@ -82,25 +82,9 @@ jobs:
           TF_VAR_google_dkim_record: ${{ secrets.GOOGLE_DKIM_RECORD }}
           TF_VAR_tf_encryption_key: ${{ secrets.TF_ENCRYPTION_KEY }}
 
-      - name: Extract KV namespace ID
-        id: kv
-        working-directory: infra
-        run: |
-          KV_ID=$(tofu output -raw kv_namespace_id)
-          echo "namespace_id=${KV_ID}" >> "$GITHUB_OUTPUT"
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          TF_VAR_tf_encryption_key: ${{ secrets.TF_ENCRYPTION_KEY }}
-
       - name: Install wrangler dependencies
         working-directory: site
         run: npm ci
-
-      - name: Update wrangler.toml with KV namespace ID
-        working-directory: site
-        run: |
-          sed -i 's/# KV_NAMESPACE_ID.*/id = "${{ steps.kv.outputs.namespace_id }}"/' wrangler.toml
 
       - name: Set worker secrets
         working-directory: site
