@@ -1,15 +1,18 @@
-variable "cloudflare_api_token" {
-  type      = string
-  sensitive = true
+variable "cloudflare_account_id" {
+  type        = string
+  description = "Cloudflare account ID"
 }
 
-variable "cloudflare_account_id" {
-  type = string
+variable "cloudflare_api_token" {
+  type        = string
+  sensitive   = true
+  description = "Cloudflare API token with Zone, DNS, Workers, and KV permissions"
 }
 
 variable "domain" {
-  type    = string
-  default = "oghamconsults.cc"
+  type        = string
+  default     = "oghamconsults.cc"
+  description = "Primary domain for the Cloudflare zone"
 }
 
 variable "google_dkim_record" {

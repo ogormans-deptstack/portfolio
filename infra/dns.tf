@@ -5,19 +5,26 @@ resource "cloudflare_zone" "main" {
   name = var.domain
   type = "full"
 }
-
 locals {
-  zone_settings_on = toset([
+  enabled_zone_settings = toset([
     "always_use_https",
     "automatic_https_rewrites",
     "brotli",
     "http3",
     "0rtt",
   ])
+
+  google_mx_records = {
+    "aspmx.l.google.com"      = 1
+    "alt1.aspmx.l.google.com" = 5
+    "alt2.aspmx.l.google.com" = 5
+    "alt3.aspmx.l.google.com" = 10
+    "alt4.aspmx.l.google.com" = 10
+  }
 }
 
-resource "cloudflare_zone_setting" "on" {
-  for_each   = local.zone_settings_on
+resource "cloudflare_zone_setting" "enabled_features" {
+  for_each   = local.enabled_zone_settings
   zone_id    = cloudflare_zone.main.id
   setting_id = each.key
   value      = "on"
@@ -58,49 +65,13 @@ resource "cloudflare_zone_setting" "security_header" {
     }
   }
 }
-
-resource "cloudflare_dns_record" "google_mx_1" {
+resource "cloudflare_dns_record" "google_mx" {
+  for_each = local.google_mx_records
   zone_id  = cloudflare_zone.main.id
   name     = "@"
   type     = "MX"
-  content  = "aspmx.l.google.com"
-  priority = 1
-  ttl      = 3600
-}
-
-resource "cloudflare_dns_record" "google_mx_2" {
-  zone_id  = cloudflare_zone.main.id
-  name     = "@"
-  type     = "MX"
-  content  = "alt1.aspmx.l.google.com"
-  priority = 5
-  ttl      = 3600
-}
-
-resource "cloudflare_dns_record" "google_mx_3" {
-  zone_id  = cloudflare_zone.main.id
-  name     = "@"
-  type     = "MX"
-  content  = "alt2.aspmx.l.google.com"
-  priority = 5
-  ttl      = 3600
-}
-
-resource "cloudflare_dns_record" "google_mx_4" {
-  zone_id  = cloudflare_zone.main.id
-  name     = "@"
-  type     = "MX"
-  content  = "alt3.aspmx.l.google.com"
-  priority = 10
-  ttl      = 3600
-}
-
-resource "cloudflare_dns_record" "google_mx_5" {
-  zone_id  = cloudflare_zone.main.id
-  name     = "@"
-  type     = "MX"
-  content  = "alt4.aspmx.l.google.com"
-  priority = 10
+  content  = each.key
+  priority = each.value
   ttl      = 3600
 }
 
