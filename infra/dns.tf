@@ -1,8 +1,3 @@
-import {
-  to = cloudflare_zone.main
-  id = "d1d9da6bf7e3735224263065baa59d62"
-}
-
 resource "cloudflare_zone" "main" {
   account = {
     id = var.cloudflare_account_id
@@ -97,6 +92,7 @@ resource "cloudflare_dns_record" "dmarc" {
 }
 
 resource "cloudflare_dns_record" "google_dkim" {
+  count   = var.google_dkim_record != "" ? 1 : 0
   zone_id = cloudflare_zone.main.id
   name    = "google._domainkey"
   type    = "TXT"

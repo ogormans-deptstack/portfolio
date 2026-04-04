@@ -17,6 +17,7 @@ variable "domain" {
 
 variable "google_dkim_record" {
   type        = string
+  default     = ""
   sensitive   = true
   description = "Google Workspace DKIM record from admin.google.com"
 }

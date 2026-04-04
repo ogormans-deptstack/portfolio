@@ -25,11 +25,6 @@ resource "cloudflare_workers_script" "portfolio" {
   ]
 }
 
-import {
-  to = cloudflare_workers_kv_namespace.portfolio
-  id = "57e06258dd3ee22859a3f5fa6508f696/4135f9c4aded4ab78eee5fe303130d47"
-}
-
 resource "cloudflare_workers_kv_namespace" "portfolio" {
   account_id = var.cloudflare_account_id
   title      = "portfolio-kv"
