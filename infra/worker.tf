@@ -10,9 +10,8 @@ resource "cloudflare_workers_route" "apex" {
 }
 
 resource "cloudflare_workers_custom_domain" "www" {
-  account_id  = var.cloudflare_account_id
-  hostname    = "www.${var.domain}"
-  service     = "portfolio"
-  zone_id     = cloudflare_zone.main.id
-  environment = "production"
+  account_id = var.cloudflare_account_id
+  hostname   = "www.${var.domain}"
+  service    = "portfolio"
+  zone_id    = cloudflare_zone.main.id
 }
