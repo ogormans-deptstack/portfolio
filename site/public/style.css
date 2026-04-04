@@ -330,6 +330,19 @@ nav {
   text-decoration: none;
 }
 
+/* Empty State */
+.empty-state {
+  padding: var(--space-lg) var(--space-md);
+  text-align: center;
+  border: 1px dashed var(--border-color);
+  background: var(--surface-color);
+}
+
+.empty-state p {
+  font-size: 0.875rem;
+  margin-bottom: 0;
+}
+
 /* Timeline Section */
 .timeline-blurb {
   max-width: 700px;
