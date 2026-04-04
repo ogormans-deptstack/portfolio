@@ -86,14 +86,6 @@ jobs:
         working-directory: site
         run: npm ci
 
-      - name: Set worker secrets
-        working-directory: site
-        run: |
-          echo "${{ secrets.WORKER_GITHUB_TOKEN }}" | npx wrangler secret put GITHUB_TOKEN
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-
       - name: Deploy worker
         working-directory: site
         run: npx wrangler deploy

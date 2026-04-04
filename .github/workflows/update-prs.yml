@@ -1,0 +1,95 @@
+name: Update PR Data
+
+on:
+  schedule:
+    - cron: "0 */4 * * *"
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["Deploy Portfolio"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  GITHUB_USERNAMES: ogormans-deptstack
+  FILTERED_REPOS: ogormans-deptstack/enhancements,dept/gni-drupal-cms,HSEIreland/hse-frontend-react
+  STALE_DAYS: "365"
+  KV_NAMESPACE_ID: "4135f9c4aded4ab78eee5fe303130d47"
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch PRs via GitHub CLI
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          IFS=',' read -ra USERNAMES <<< "$GITHUB_USERNAMES"
+          all_prs="[]"
+          cutoff=$(date -d "-${STALE_DAYS} days" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -v-${STALE_DAYS}d +%Y-%m-%dT%H:%M:%SZ)
+
+          for username in "${USERNAMES[@]}"; do
+            username=$(echo "$username" | xargs)
+            prs=$(gh api -X GET "search/issues" \
+              -f q="author:${username} type:pr" \
+              -f sort=updated \
+              -f order=desc \
+              -f per_page=20 \
+              --jq '.items | map({
+                title: .title,
+                url: .html_url,
+                repo: (.repository_url | split("/") | .[-2:] | join("/")),
+                state: (if .pull_request.merged_at then "merged" elif .state == "closed" then "closed" else "open" end),
+                created: .created_at,
+                updated: .updated_at,
+                merged: (.pull_request.merged_at // null),
+                comments: .comments
+              })' 2>/dev/null || echo "[]")
+
+            all_prs=$(echo "$all_prs" "$prs" | jq -s '.[0] + .[1]')
+          done
+
+          IFS=',' read -ra FILTERED <<< "$FILTERED_REPOS"
+          filter_expr=$(printf '"%s",' "${FILTERED[@]}")
+          filter_expr="[${filter_expr%,}]"
+
+          prs=$(echo "$all_prs" | jq --argjson filtered "$filter_expr" --arg cutoff "$cutoff" '
+            unique_by(.url)
+            | map(select(.repo as $r | $filtered | index($r) | not))
+            | map(select(.state != "open" or (.updated > $cutoff)))
+            | sort_by(.updated) | reverse
+          ')
+
+          merged=$(echo "$prs" | jq '[.[] | select(.state == "merged" and .merged != null)] | sort_by(.merged) | reverse')
+
+          echo "$prs" > /tmp/github-prs.json
+          echo "$merged" > /tmp/merged-prs.json
+
+          echo "Total PRs: $(echo "$prs" | jq length)"
+          echo "Merged PRs: $(echo "$merged" | jq length)"
+
+      - name: Write to Cloudflare KV
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          kv_url="https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/storage/kv/namespaces/${KV_NAMESPACE_ID}/values"
+
+          curl -sf -X PUT "${kv_url}/github-prs" \
+            -H "Authorization: Bearer ${CF_API_TOKEN}" \
+            -H "Content-Type: application/json" \
+            --data @/tmp/github-prs.json
+
+          echo "Wrote github-prs to KV"
+
+          merged_payload=$(jq -n --slurpfile prs /tmp/merged-prs.json '{prs: $prs[0]}')
+          echo "$merged_payload" > /tmp/merged-payload.json
+
+          curl -sf -X PUT "${kv_url}/merged-prs" \
+            -H "Authorization: Bearer ${CF_API_TOKEN}" \
+            -H "Content-Type: application/json" \
+            --data @/tmp/merged-payload.json
+
+          echo "Wrote merged-prs to KV"
