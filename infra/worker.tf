@@ -39,15 +39,17 @@ resource "cloudflare_workers_cron_trigger" "refresh_prs" {
 }
 
 resource "cloudflare_workers_custom_domain" "apex" {
-  account_id = var.cloudflare_account_id
-  hostname   = var.domain
-  service    = cloudflare_workers_script.portfolio.script_name
-  zone_id    = cloudflare_zone.main.id
+  account_id  = var.cloudflare_account_id
+  hostname    = var.domain
+  service     = cloudflare_workers_script.portfolio.script_name
+  zone_id     = cloudflare_zone.main.id
+  environment = "production"
 }
 
 resource "cloudflare_workers_custom_domain" "www" {
-  account_id = var.cloudflare_account_id
-  hostname   = "www.${var.domain}"
-  service    = cloudflare_workers_script.portfolio.script_name
-  zone_id    = cloudflare_zone.main.id
+  account_id  = var.cloudflare_account_id
+  hostname    = "www.${var.domain}"
+  service     = cloudflare_workers_script.portfolio.script_name
+  zone_id     = cloudflare_zone.main.id
+  environment = "production"
 }
