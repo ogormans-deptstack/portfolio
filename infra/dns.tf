@@ -124,6 +124,6 @@ resource "cloudflare_dns_record" "google_dkim" {
   zone_id = cloudflare_zone.main.id
   name    = "google._domainkey"
   type    = "TXT"
-  content = local.google_dkim_record
+  content = var.google_dkim_record
   ttl     = 3600
 }

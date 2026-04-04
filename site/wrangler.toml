@@ -13,6 +13,9 @@ binding = "KV"
 id = "REPLACE_AFTER_TOFU_APPLY"
 preview_id = "REPLACE_FOR_LOCAL_DEV"
 
+[ai]
+binding = "AI"
+
 [triggers]
 crons = ["0 */6 * * *"]
 

@@ -5,6 +5,7 @@ const FILTERED_REPOS = new Set([
 ]);
 
 const STALE_CUTOFF_DAYS = 365;
+const AI_MODEL = "@cf/ibm-granite/granite-4.0-h-micro";
 
 export default {
   async scheduled(controller, env, ctx) {
@@ -21,6 +22,18 @@ export default {
     const deduped = deduplicateByUrl(allPrs);
 
     await env.KV.put("github-prs", JSON.stringify(deduped), {
+      expirationTtl: 86400,
+    });
+
+    const merged = deduped
+      .filter((pr) => pr.state === "merged" && pr.merged)
+      .sort((a, b) => new Date(b.merged) - new Date(a.merged));
+
+    if (merged.length > 0 && env.AI) {
+      await generateMergedBlurb(merged, env);
+    }
+
+    await env.KV.put("merged-prs", JSON.stringify(merged), {
       expirationTtl: 86400,
     });
   },
@@ -90,6 +103,46 @@ function deduplicateByUrl(prs) {
   });
 }
 
+async function generateMergedBlurb(merged, env) {
+  const fingerprint = merged.map((pr) => pr.url).join("|");
+  const cachedFingerprint = await env.KV.get("merged-fingerprint");
+
+  if (fingerprint === cachedFingerprint) return;
+
+  const prSummary = merged
+    .slice(0, 10)
+    .map((pr) => `- ${pr.repo}: ${pr.title}`)
+    .join("\n");
+
+  try {
+    const result = await env.AI.run(AI_MODEL, {
+      messages: [
+        {
+          role: "system",
+          content:
+            "Write a concise 2-3 sentence narrative summarizing open source contributions. " +
+            "Use a professional but approachable tone. Mention specific projects by name. " +
+            "Do not use bullet points. Do not start with 'I'. Write in third person.",
+        },
+        {
+          role: "user",
+          content: `Summarize these merged open source pull requests:\n${prSummary}`,
+        },
+      ],
+    });
+
+    const blurb = result.response || "";
+    if (blurb.length > 0) {
+      await env.KV.put("merged-blurb", blurb, { expirationTtl: 86400 });
+      await env.KV.put("merged-fingerprint", fingerprint, {
+        expirationTtl: 86400,
+      });
+    }
+  } catch (e) {
+    console.error("AI blurb generation failed:", e.message);
+  }
+}
+
 async function handleApi(url, env) {
   if (url.pathname === "/api/prs") {
     const data = await env.KV.get("github-prs");
@@ -100,6 +153,26 @@ async function handleApi(url, env) {
         "Access-Control-Allow-Origin": "*",
       },
     });
+  }
+
+  if (url.pathname === "/api/merged") {
+    const [prs, blurb] = await Promise.all([
+      env.KV.get("merged-prs"),
+      env.KV.get("merged-blurb"),
+    ]);
+    return new Response(
+      JSON.stringify({
+        prs: JSON.parse(prs || "[]"),
+        blurb: blurb || null,
+      }),
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "Cache-Control": "public, max-age=3600",
+          "Access-Control-Allow-Origin": "*",
+        },
+      }
+    );
   }
 
   if (url.pathname === "/api/health") {

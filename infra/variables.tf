@@ -1,5 +1,6 @@
-variable "gcp_project_id" {
-  type = string
+variable "cloudflare_api_token" {
+  type      = string
+  sensitive = true
 }
 
 variable "cloudflare_account_id" {
@@ -8,5 +9,11 @@ variable "cloudflare_account_id" {
 
 variable "domain" {
   type    = string
-  default = "gorm-ogham-consulting-webhook.com"
+  default = "oghamconsults.cc"
+}
+
+variable "google_dkim_record" {
+  type        = string
+  sensitive   = true
+  description = "Google Workspace DKIM record from admin.google.com"
 }

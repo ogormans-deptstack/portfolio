@@ -2,27 +2,30 @@ terraform {
   required_version = ">= 1.9"
 
   required_providers {
-    google = {
-      source  = "hashicorp/google"
-      version = "~> 6.0"
-    }
     cloudflare = {
       source  = "cloudflare/cloudflare"
       version = "~> 5.18"
     }
   }
 
-  backend "gcs" {
-    bucket = "gorm-ogham-portfolio-tofu-state"
-    prefix = "prod"
+  backend "s3" {
+    bucket = "portfolio-tfstate"
+    key    = "portfolio/terraform.tfstate"
+    region = "auto"
+
+    endpoints = {
+      s3 = "https://<ACCOUNT_ID>.r2.cloudflarestorage.com"
+    }
+
+    skip_credentials_validation = true
+    skip_metadata_api_check     = true
+    skip_region_validation      = true
+    skip_requesting_account_id  = true
+    skip_s3_checksum            = true
+    use_path_style              = true
   }
 }
 
-provider "google" {
-  project = var.gcp_project_id
-  region  = "us-central1"
-}
-
 provider "cloudflare" {
-  api_token = data.google_secret_manager_secret_version_access.cloudflare_api_token.secret_data
+  api_token = var.cloudflare_api_token
 }

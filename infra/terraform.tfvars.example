@@ -1,2 +1,4 @@
-gcp_project_id        = "your-gcp-project-id"
-cloudflare_account_id = "your-cloudflare-account-id"
+cloudflare_api_token  = "YOUR_CLOUDFLARE_API_TOKEN"
+cloudflare_account_id = "YOUR_CLOUDFLARE_ACCOUNT_ID"
+domain                = "oghamconsults.cc"
+google_dkim_record    = "v=DKIM1; k=rsa; p=YOUR_GOOGLE_DKIM_PUBLIC_KEY"

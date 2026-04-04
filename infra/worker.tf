@@ -14,9 +14,8 @@ resource "cloudflare_workers_script" "portfolio" {
       namespace_id = cloudflare_workers_kv_namespace.portfolio.id
     },
     {
-      name = "GITHUB_TOKEN"
-      type = "secret_text"
-      text = local.github_token
+      name = "AI"
+      type = "ai"
     },
     {
       name = "GITHUB_USERNAMES"

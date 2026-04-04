@@ -13,6 +13,7 @@
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
+<div class="ogham-edge" aria-hidden="true">᚛ᚄᚓᚐᚅ᚜</div>
 
   <header>
     <div class="container">
@@ -22,7 +23,8 @@
           <a href="#about">01. About</a>
           <a href="#skills">02. Skills</a>
           <a href="#oss">03. OSS</a>
-          <a href="#contact">04. Contact</a>
+          <a href="#timeline">04. Timeline</a>
+          <a href="#contact">05. Contact</a>
         </div>
       </nav>
     </div>
@@ -37,6 +39,10 @@
       </div>
       <p class="hero-tagline">Building reliable systems at the intersection of cloud infrastructure, developer tooling, and AI-assisted engineering.</p>
     </section>
+
+    <div class="ogham-rule" aria-hidden="true">
+      <span>ᚁᚂᚃᚄᚅ</span>
+    </div>
 
     <section id="about" class="section container">
       <div class="section-header">
@@ -162,15 +168,27 @@
       </noscript>
     </section>
 
-    <section id="contact" class="section container" style="border-bottom: none;">
+    <section id="timeline" class="section container">
       <div class="section-header">
         <span class="section-num">04.</span>
+        <h2>Contribution Timeline</h2>
+      </div>
+      <div id="timeline-blurb" class="timeline-blurb"></div>
+      <div id="timeline-list" class="timeline-list"></div>
+      <noscript>
+        <p class="text-muted">Enable JavaScript to see the live contribution timeline.</p>
+      </noscript>
+    </section>
+
+    <section id="contact" class="section container" style="border-bottom: none;">
+      <div class="section-header">
+        <span class="section-num">05.</span>
         <h2>Get in Touch</h2>
       </div>
       <div class="contact-wrapper">
         <p>I'm always interested in discussing infrastructure challenges, AI tooling, and open source opportunities.</p>
         <br>
-        <a href="mailto:contact@gorm-ogham-consulting-webhook.com" class="btn">Send an Email</a>
+        <a href="mailto:contact@oghamconsults.cc" class="btn">Send an Email</a>
         <br><br><br>
         <a href="https://github.com/seanogor" target="_blank" rel="noopener noreferrer" class="mono text-accent">github.com/seanogor</a>
       </div>
@@ -192,27 +210,56 @@
 <script>
 (function () {
   var grid = document.getElementById("oss-live");
-  if (!grid) return;
+  if (grid) {
+    fetch("/api/prs")
+      .then(function (r) { return r.json(); })
+      .then(function (prs) {
+        if (!prs.length) return;
+        grid.innerHTML = prs.slice(0, 8).map(function (pr) {
+          var badge = pr.state === "merged" ? "Merged"
+            : pr.state === "closed" ? "Closed"
+            : "Open";
+          var date = new Date(pr.updated).toLocaleDateString("en-US", {
+            month: "short", day: "numeric", year: "numeric"
+          });
+          return '<a href="' + pr.url + '" target="_blank" rel="noopener noreferrer" class="card card-link">'
+            + '<div class="oss-meta"><span>' + pr.repo + '</span><span>' + badge + '</span></div>'
+            + '<h3>' + pr.title + '</h3>'
+            + '<p class="text-sm" style="margin-top:auto">' + date + ' · ' + pr.comments + ' comments</p>'
+            + '</a>';
+        }).join("");
+      })
+      .catch(function () {});
+  }
 
-  fetch("/api/prs")
-    .then(function (r) { return r.json(); })
-    .then(function (prs) {
-      if (!prs.length) return;
-      grid.innerHTML = prs.slice(0, 8).map(function (pr) {
-        var badge = pr.state === "merged" ? "Merged"
-          : pr.state === "closed" ? "Closed"
-          : "Open";
-        var date = new Date(pr.updated).toLocaleDateString("en-US", {
-          month: "short", day: "numeric", year: "numeric"
-        });
-        return '<a href="' + pr.url + '" target="_blank" rel="noopener noreferrer" class="card card-link">'
-          + '<div class="oss-meta"><span>' + pr.repo + '</span><span>' + badge + '</span></div>'
-          + '<h3>' + pr.title + '</h3>'
-          + '<p class="text-sm" style="margin-top:auto">' + date + ' · ' + pr.comments + ' comments</p>'
-          + '</a>';
-      }).join("");
-    })
-    .catch(function () {});
+  var blurbEl = document.getElementById("timeline-blurb");
+  var listEl = document.getElementById("timeline-list");
+  if (blurbEl && listEl) {
+    fetch("/api/merged")
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data.blurb) {
+          blurbEl.innerHTML = '<p class="blurb-text">' + data.blurb + '</p>'
+            + '<span class="blurb-label">AI-generated summary</span>';
+        }
+        var prs = data.prs || [];
+        if (!prs.length) return;
+        listEl.innerHTML = prs.slice(0, 12).map(function (pr) {
+          var date = new Date(pr.merged).toLocaleDateString("en-US", {
+            month: "short", day: "numeric", year: "numeric"
+          });
+          return '<a href="' + pr.url + '" target="_blank" rel="noopener noreferrer" class="timeline-item">'
+            + '<span class="timeline-date mono">' + date + '</span>'
+            + '<span class="timeline-dot"></span>'
+            + '<div class="timeline-content">'
+            + '<span class="timeline-repo">' + pr.repo + '</span>'
+            + '<span class="timeline-title">' + pr.title + '</span>'
+            + '</div>'
+            + '</a>';
+        }).join("");
+      })
+      .catch(function () {});
+  }
 })();
 </script>
 </body>
