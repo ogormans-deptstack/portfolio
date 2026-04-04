@@ -39,7 +39,7 @@
 └──────────────────────────────────────────┘
 ```
 
-**Infrastructure as Code**: Managed via OpenTofu with R2 backend for state storage.
+**Infrastructure as Code**: Managed via OpenTofu with encrypted state stored in public R2 bucket.
 
 ---
 
@@ -84,7 +84,7 @@
 
 ### Why GitHub Actions?
 
-- **No local setup**: No need to run `bootstrap.sh` or manage R2 credentials locally
+- **No local setup**: No need to run `bootstrap.sh` or manage credentials locally
 - **Automated**: Push to `main` → infrastructure + worker deployed automatically
 - **PR validation**: Pull requests run `tofu plan` for infrastructure review
 - **Secure**: Secrets stored in GitHub, not on your machine
@@ -151,13 +151,6 @@ Both should return `"success": true`. If the verify call fails, double-check the
 
 > **Future expansion (Tier 2 permissions):** If you add Pages, Turnstile, or additional zones later, you'll need to update the token. Add `Cloudflare Pages:Edit` for Pages projects, `Turnstile:Edit` for CAPTCHA widgets, or expand zone scoping to `All zones` if managing multiple domains. Keep Tier 1 tight until you actually need more.
 
-**R2 API Token** (for Terraform backend state storage):
-1. Go to [R2 → Manage R2 API Tokens](https://dash.cloudflare.com/profile/api-tokens?product=r2)
-2. Click **Create API Token**
-3. Permissions: `Object Read & Write`
-4. Scope: `Apply to all buckets` (bucket will be created by CI)
-5. **Copy the Access Key ID and Secret Access Key**
-
 **Cloudflare Account ID**:
 1. Go to [Cloudflare Dashboard → Workers & Pages](https://dash.cloudflare.com)
 2. Find your **Account ID** in the right sidebar
@@ -183,8 +176,7 @@ Go to your repository **Settings → Secrets and variables → Actions**.
 | Secret Name | Value | Where to Get It |
 |-------------|-------|-----------------|
 | `CLOUDFLARE_API_TOKEN` | Your Cloudflare API token | Step 1 above |
-| `R2_ACCESS_KEY_ID` | R2 Access Key ID | Step 1 above |
-| `R2_SECRET_ACCESS_KEY` | R2 Secret Access Key | Step 1 above |
+| `TF_ENCRYPTION_KEY` | Encryption key for Terraform state | Generate with `openssl rand -base64 32` |
 | `WORKER_GITHUB_TOKEN` | GitHub PAT | Step 1 above |
 | `GOOGLE_DKIM_RECORD` | Google DKIM record (optional) | Step 1 above |
 
@@ -197,7 +189,7 @@ Go to your repository **Settings → Secrets and variables → Actions**.
 #### 3. Push to `main` Branch
 
 That's it! Every push to `main` will:
-1. Create R2 bucket `portfolio-tfstate` (idempotent)
+1. Create R2 bucket `portfolio-tfstate` if it doesn't exist (idempotent)
 2. Configure Terraform backend with your account ID
 3. Run `tofu init` and `tofu apply`
 4. Extract KV namespace ID from Terraform outputs
@@ -257,11 +249,8 @@ Run the bootstrap script:
 
 This will:
 1. Create R2 bucket `portfolio-tfstate` for Terraform state
-2. Guide you to create an R2 API token (scoped to the bucket)
-3. Prompt for GitHub PAT (readonly, for PR fetching)
-4. Set Worker secret via `wrangler secret put`
-
-**Save the R2 credentials** — you'll need them for Terraform.
+2. Prompt for GitHub PAT (readonly, for PR fetching)
+3. Set Worker secret via `wrangler secret put`
 
 ### 3. Configure OpenTofu
 
@@ -291,21 +280,20 @@ google_dkim_record    = "v=DKIM1; k=rsa; p=YOUR_DKIM_KEY"
 
 **Update backend endpoint** in `terraform.tf`:
 
-```hcl
-endpoints = {
-  s3 = "https://<YOUR_ACCOUNT_ID>.r2.cloudflarestorage.com"
-}
-```
+The backend uses a public R2 URL with state encryption. No S3 credentials needed. The HTTP backend URL is already configured in `terraform.tf`. You just need to set the encryption key:
 
-Replace `<YOUR_ACCOUNT_ID>` with your actual Cloudflare account ID.
+```bash
+export TF_ENCRYPTION_KEY="your-generated-encryption-key"
+# Generate with: openssl rand -base64 32
+```
 
 ### 4. Deploy Infrastructure
 
-Export R2 credentials from bootstrap:
+Export encryption key for state file:
 
 ```bash
-export AWS_ACCESS_KEY_ID="your-r2-access-key"
-export AWS_SECRET_ACCESS_KEY="your-r2-secret-key"
+export TF_ENCRYPTION_KEY="your-generated-encryption-key"
+# Generate with: openssl rand -base64 32
 ```
 
 Initialize and apply:
@@ -420,7 +408,7 @@ wrangler secret delete SECRET_NAME
 ```
 portfolio/
 ├── infra/                    # OpenTofu infrastructure
-│   ├── terraform.tf          # Backend (R2) + providers
+│   ├── terraform.tf          # Backend (HTTP/R2) + providers + encryption
 │   ├── variables.tf          # Input variables
 │   ├── dns.tf                # Cloudflare zone + DNS records
 │   ├── worker.tf             # Workers script, KV, cron, domains
@@ -521,12 +509,13 @@ If using Google Workspace for email (`contact@oghamconsults.cc`), the terraform 
 
 ### `tofu init` fails with "NoSuchKey"
 
-**Cause**: OpenTofu can't find the R2 bucket or endpoint is wrong.
+**Cause**: OpenTofu can't reach the public R2 state URL, or the state file doesn't exist yet.
 
 **Fix**:
-1. Verify bucket exists: `wrangler r2 bucket list`
-2. Check `terraform.tf` endpoint matches your account ID: `https://<ACCOUNT_ID>.r2.cloudflarestorage.com`
-3. Verify R2 credentials: `echo $AWS_ACCESS_KEY_ID` and `$AWS_SECRET_ACCESS_KEY`
+1. Verify the R2 bucket is public and the state URL is reachable: `curl -I https://pub-957a71c8739c4f92b9f2d99b0ef04649.r2.dev/portfolio/terraform.tfstate`
+2. Check that `terraform.tf` uses the HTTP backend (not S3)
+3. If this is the first run, the state file won't exist yet. That's normal. Run `tofu apply` to create it.
+4. Verify `TF_ENCRYPTION_KEY` is set: `echo $TF_ENCRYPTION_KEY`
 
 ### Worker deployment fails with "KV namespace not found"
 
