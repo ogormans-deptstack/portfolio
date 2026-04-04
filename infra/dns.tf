@@ -74,6 +74,15 @@ resource "cloudflare_dns_record" "apex_a" {
   ttl     = 1
 }
 
+resource "cloudflare_dns_record" "apex_aaaa" {
+  zone_id = cloudflare_zone.main.id
+  name    = "@"
+  type    = "AAAA"
+  content = "100::"
+  proxied = true
+  ttl     = 1
+}
+
 resource "cloudflare_dns_record" "google_mx" {
   for_each = local.google_mx_records
   zone_id  = cloudflare_zone.main.id

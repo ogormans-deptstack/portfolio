@@ -3,12 +3,10 @@ resource "cloudflare_workers_kv_namespace" "portfolio" {
   title      = "portfolio-kv"
 }
 
-resource "cloudflare_workers_custom_domain" "apex" {
-  account_id  = var.cloudflare_account_id
-  hostname    = var.domain
-  service     = "portfolio"
-  zone_id     = cloudflare_zone.main.id
-  environment = "production"
+resource "cloudflare_workers_route" "apex" {
+  zone_id = cloudflare_zone.main.id
+  pattern = "${var.domain}/*"
+  script  = "portfolio"
 }
 
 resource "cloudflare_workers_custom_domain" "www" {
