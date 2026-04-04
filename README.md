@@ -95,16 +95,61 @@
 #### 1. Get Cloudflare Credentials
 
 **Cloudflare API Token** (required for both Terraform and Wrangler):
+
+Use an **Account API Token** (not a User token). Account tokens act as service principals, survive user account changes, and can be scoped to exactly the resources this deployment needs.
+
+**Create the token:**
+
 1. Go to [Cloudflare Dashboard → API Tokens](https://dash.cloudflare.com/profile/api-tokens)
-2. Click **Create Token**
-3. Permissions:
-   - `Workers Routes:Edit`
-   - `Workers Scripts:Edit`
-   - `Workers KV Storage:Edit`
-   - `Zone:Edit`
-   - `DNS:Edit`
-4. Zone Resources: `Include → Specific zone → oghamconsults.cc` (or your domain)
-5. **Copy the token** — you'll only see it once
+2. Click **Create Token** → **Create Custom Token**
+3. Name it something clear, like `portfolio-deploy-ci`
+4. Add these permissions:
+
+**Required Permissions (Tier 1):**
+
+| Scope | Permission | Access | Why |
+|-------|-----------|--------|-----|
+| Account | Workers Scripts | Edit | Deploy worker code via Wrangler |
+| Account | Workers KV Storage | Edit | Create/manage KV namespace for PR cache |
+| Account | Workers R2 Storage | Edit | Wrangler R2 bucket operations |
+| Account | Workers AI | Edit | Bind IBM Granite model to worker |
+| Account | Account Settings | Read | Wrangler needs account-level metadata |
+| Zone | DNS | Edit | Create/update MX, SPF, DMARC, DKIM records |
+| Zone | Zone | Read | Read zone config during `tofu plan` |
+| Zone | Zone Settings | Edit | Configure SSL mode, minification, security headers |
+| Zone | SSL and Certificates | Edit | Manage edge certificates and SSL settings |
+
+5. **Resource scoping** (don't skip this):
+   - **Account Resources**: `Include → Specific account → <your account>`
+   - **Zone Resources**: `Include → Specific zone → oghamconsults.cc`
+
+   Scoping to a single account and zone means the token can't touch anything else, even if compromised.
+
+6. **Security settings:**
+   - **TTL**: Set to 90 days. Short enough to limit exposure, long enough to avoid constant rotation. Add a calendar reminder to regenerate before it expires.
+   - **IP Address Filtering**: Leave empty. GitHub Actions runners use dynamic IPs, so allowlisting isn't practical here.
+   - **Client IP Address Filtering**: Same, leave empty.
+
+7. Click **Continue to summary** → **Create Token**
+8. **Copy the token immediately.** Cloudflare won't show it again.
+
+**Verify the token works:**
+
+```bash
+# Quick auth check (should return your email and account info)
+curl -s -H "Authorization: Bearer YOUR_TOKEN" \
+  "https://api.cloudflare.com/client/v4/user/tokens/verify" | jq .
+
+# Confirm zone access (should list oghamconsults.cc)
+curl -s -H "Authorization: Bearer YOUR_TOKEN" \
+  "https://api.cloudflare.com/client/v4/zones?name=oghamconsults.cc" | jq '.result[].name'
+```
+
+Both should return `"success": true`. If the verify call fails, double-check the permissions table above.
+
+**Rotation cadence:** Regenerate the token every 90 days (matching the TTL). Update the `CLOUDFLARE_API_TOKEN` secret in GitHub Actions when you do.
+
+> **Future expansion (Tier 2 permissions):** If you add Pages, Turnstile, or additional zones later, you'll need to update the token. Add `Cloudflare Pages:Edit` for Pages projects, `Turnstile:Edit` for CAPTCHA widgets, or expand zone scoping to `All zones` if managing multiple domains. Keep Tier 1 tight until you actually need more.
 
 **R2 API Token** (for Terraform backend state storage):
 1. Go to [R2 → Manage R2 API Tokens](https://dash.cloudflare.com/profile/api-tokens?product=r2)
