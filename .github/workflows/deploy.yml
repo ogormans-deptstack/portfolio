@@ -33,7 +33,7 @@ jobs:
       - name: tofu init
         run: tofu init
         env:
-          TF_ENCRYPTION_KEY: ${{ secrets.TF_ENCRYPTION_KEY }}
+          TF_VAR_tf_encryption_key: ${{ secrets.TF_ENCRYPTION_KEY }}
 
       - name: tofu plan
         run: tofu plan -no-color
@@ -41,7 +41,7 @@ jobs:
           TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           TF_VAR_cloudflare_account_id: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           TF_VAR_google_dkim_record: ${{ secrets.GOOGLE_DKIM_RECORD }}
-          TF_ENCRYPTION_KEY: ${{ secrets.TF_ENCRYPTION_KEY }}
+          TF_VAR_tf_encryption_key: ${{ secrets.TF_ENCRYPTION_KEY }}
 
   deploy:
     needs: plan
@@ -63,7 +63,7 @@ jobs:
         working-directory: infra
         run: tofu init
         env:
-          TF_ENCRYPTION_KEY: ${{ secrets.TF_ENCRYPTION_KEY }}
+          TF_VAR_tf_encryption_key: ${{ secrets.TF_ENCRYPTION_KEY }}
 
       - name: tofu apply
         working-directory: infra
@@ -72,7 +72,7 @@ jobs:
           TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           TF_VAR_cloudflare_account_id: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           TF_VAR_google_dkim_record: ${{ secrets.GOOGLE_DKIM_RECORD }}
-          TF_ENCRYPTION_KEY: ${{ secrets.TF_ENCRYPTION_KEY }}
+          TF_VAR_tf_encryption_key: ${{ secrets.TF_ENCRYPTION_KEY }}
 
       - name: Extract KV namespace ID
         id: kv
@@ -81,7 +81,7 @@ jobs:
           KV_ID=$(tofu output -raw kv_namespace_id)
           echo "namespace_id=${KV_ID}" >> "$GITHUB_OUTPUT"
         env:
-          TF_ENCRYPTION_KEY: ${{ secrets.TF_ENCRYPTION_KEY }}
+          TF_VAR_tf_encryption_key: ${{ secrets.TF_ENCRYPTION_KEY }}
 
       - name: Install wrangler dependencies
         working-directory: site

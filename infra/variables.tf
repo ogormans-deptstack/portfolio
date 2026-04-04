@@ -17,3 +17,9 @@ variable "google_dkim_record" {
   sensitive   = true
   description = "Google Workspace DKIM record from admin.google.com"
 }
+
+variable "tf_encryption_key" {
+  type        = string
+  sensitive   = true
+  description = "Passphrase for OpenTofu state encryption (generate with: openssl rand -base64 32)"
+}

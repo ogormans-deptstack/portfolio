@@ -13,21 +13,24 @@ terraform {
     lock_address   = "https://pub-957a71c8739c4f92b9f2d99b0ef04649.r2.dev/portfolio/terraform.tfstate"
     unlock_address = "https://pub-957a71c8739c4f92b9f2d99b0ef04649.r2.dev/portfolio/terraform.tfstate"
   }
-}
 
-encryption {
-  method {
-    aes_gcm {
-      keys = key_provider.passphrase.key
+  encryption {
+    key_provider "pbkdf2" "state_key" {
+      passphrase = var.tf_encryption_key
     }
-  }
 
-  key_provider "passphrase" "key" {
-    passphrase = env("TF_ENCRYPTION_KEY")
-  }
+    method "aes_gcm" "state_enc" {
+      keys = key_provider.pbkdf2.state_key
+    }
 
-  state {
-    enforced = true
+    state {
+      method = method.aes_gcm.state_enc
+      fallback {
+        method = method.unencrypted.migration
+      }
+    }
+
+    method "unencrypted" "migration" {}
   }
 }
 
