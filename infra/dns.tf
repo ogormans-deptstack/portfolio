@@ -65,6 +65,15 @@ resource "cloudflare_zone_setting" "security_header" {
     }
   }
 }
+resource "cloudflare_dns_record" "apex_a" {
+  zone_id = cloudflare_zone.main.id
+  name    = "@"
+  type    = "A"
+  content = "192.0.2.1"
+  proxied = true
+  ttl     = 1
+}
+
 resource "cloudflare_dns_record" "google_mx" {
   for_each = local.google_mx_records
   zone_id  = cloudflare_zone.main.id

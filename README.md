@@ -465,7 +465,7 @@ make bootstrap    # Run bootstrap script
 ## AI Blurb Generation
 
 Every 6 hours, the Worker:
-1. Fetches PRs from GitHub API (both `ogormans-deptstack` and `seanogor` accounts)
+1. Fetches PRs from GitHub API (`ogormans-deptstack` account)
 2. Filters to merged PRs only, sorted by merge date
 3. Generates a fingerprint (URL hash) to detect changes
 4. If changed, calls Workers AI with IBM Granite Micro (1B params)
