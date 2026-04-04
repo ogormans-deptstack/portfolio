@@ -5,10 +5,10 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
-  id-token: write
   pull-requests: write
 
 jobs:
@@ -23,77 +23,97 @@ jobs:
 
       - uses: asdf-vm/actions/install@v4
 
-      - name: Check GCP configuration
-        id: check
+      - name: Create R2 bucket for Terraform state
         run: |
-          if [ -z "${{ vars.GCP_WIF_PROVIDER }}" ]; then
-            echo "configured=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::GCP not bootstrapped — skipping plan. Run bootstrap.sh first."
-          else
-            echo "configured=true" >> "$GITHUB_OUTPUT"
-          fi
+          npx wrangler r2 bucket create portfolio-tfstate 2>/dev/null || echo "Bucket exists, continuing..."
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
 
-      - if: steps.check.outputs.configured == 'true'
-        id: auth
-        uses: google-github-actions/auth@v3
-        with:
-          project_id: ${{ vars.GCP_PROJECT_ID }}
-          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
-          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+      - name: Configure Terraform backend
+        run: |
+          sed -i 's|<ACCOUNT_ID>|${{ vars.CLOUDFLARE_ACCOUNT_ID }}|g' terraform.tf
 
-      - if: steps.check.outputs.configured == 'true'
-        name: tofu init
+      - name: tofu init
         run: tofu init
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
 
-      - if: steps.check.outputs.configured == 'true'
-        name: tofu plan
+      - name: tofu plan
         run: tofu plan -no-color
         env:
-          TF_VAR_gcp_project_id: ${{ vars.GCP_PROJECT_ID }}
+          TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           TF_VAR_cloudflare_account_id: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          TF_VAR_google_dkim_record: ${{ secrets.GOOGLE_DKIM_RECORD }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
 
   deploy:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
 
       - uses: asdf-vm/actions/install@v4
 
-      - name: Check GCP configuration
-        id: check
+      - name: Create R2 bucket for Terraform state
         run: |
-          if [ -z "${{ vars.GCP_WIF_PROVIDER }}" ]; then
-            echo "configured=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::GCP not bootstrapped — skipping infra deploy. Run bootstrap.sh first."
-          else
-            echo "configured=true" >> "$GITHUB_OUTPUT"
-          fi
+          npx wrangler r2 bucket create portfolio-tfstate 2>/dev/null || echo "Bucket exists, continuing..."
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
 
-      - if: steps.check.outputs.configured == 'true'
-        id: auth
-        uses: google-github-actions/auth@v3
-        with:
-          project_id: ${{ vars.GCP_PROJECT_ID }}
-          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
-          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
-
-      - if: steps.check.outputs.configured == 'true'
-        name: tofu apply
+      - name: Configure Terraform backend
         working-directory: infra
         run: |
-          tofu init
-          tofu apply -auto-approve
-        env:
-          TF_VAR_gcp_project_id: ${{ vars.GCP_PROJECT_ID }}
-          TF_VAR_cloudflare_account_id: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          sed -i 's|<ACCOUNT_ID>|${{ vars.CLOUDFLARE_ACCOUNT_ID }}|g' terraform.tf
 
-      - name: Install wrangler
+      - name: tofu init
+        working-directory: infra
+        run: tofu init
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+
+      - name: tofu apply
+        working-directory: infra
+        run: tofu apply -auto-approve
+        env:
+          TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          TF_VAR_cloudflare_account_id: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          TF_VAR_google_dkim_record: ${{ secrets.GOOGLE_DKIM_RECORD }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+
+      - name: Extract KV namespace ID
+        id: kv
+        working-directory: infra
+        run: |
+          KV_ID=$(tofu output -raw kv_namespace_id)
+          echo "namespace_id=${KV_ID}" >> "$GITHUB_OUTPUT"
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+
+      - name: Install wrangler dependencies
         working-directory: site
         run: npm ci
 
-      - if: steps.check.outputs.configured == 'true'
-        name: Deploy worker
+      - name: Update wrangler.toml with KV namespace ID
+        working-directory: site
+        run: |
+          sed -i 's/# KV_NAMESPACE_ID.*/id = "${{ steps.kv.outputs.namespace_id }}"/' wrangler.toml
+
+      - name: Set worker secrets
+        working-directory: site
+        run: |
+          echo "${{ secrets.WORKER_GITHUB_TOKEN }}" | npx wrangler secret put GITHUB_TOKEN
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Deploy worker
         working-directory: site
         run: npx wrangler deploy
         env:

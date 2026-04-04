@@ -10,6 +10,7 @@ run_worker_first = ["/api/*"]
 
 [[kv_namespaces]]
 binding = "KV"
+# KV_NAMESPACE_ID - replaced by CI or set manually after tofu apply
 id = "REPLACE_AFTER_TOFU_APPLY"
 preview_id = "REPLACE_FOR_LOCAL_DEV"
 

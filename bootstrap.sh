@@ -1,10 +1,24 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+echo "=== Cloudflare Portfolio Bootstrap (Optional - For Local Development) ==="
+echo ""
+echo "NOTE: If using GitHub Actions, you don't need to run this script."
+echo "      CI/CD handles all infrastructure setup automatically."
+echo "      See README 'GitHub Actions Deployment' section for setup."
+echo ""
+read -p "Continue with local setup? (y/N) " -n 1 -r
+echo
+if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+	echo "Exiting. Use GitHub Actions for automated deployment."
+	exit 0
+fi
+echo ""
+
 ACCOUNT_ID="${CLOUDFLARE_ACCOUNT_ID:?Set CLOUDFLARE_ACCOUNT_ID}"
 BUCKET_NAME="portfolio-tfstate"
 
-echo "=== Cloudflare Portfolio Bootstrap ==="
+echo "=== Local Cloudflare Setup ==="
 echo ""
 
 echo "[1/2] Creating R2 bucket for Terraform state..."

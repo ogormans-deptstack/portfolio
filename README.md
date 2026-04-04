@@ -78,7 +78,107 @@
 
 ---
 
-## Quick Start
+## GitHub Actions Deployment (Recommended)
+
+**Fully automated deployment with zero local credentials needed.**
+
+### Why GitHub Actions?
+
+- **No local setup**: No need to run `bootstrap.sh` or manage R2 credentials locally
+- **Automated**: Push to `main` → infrastructure + worker deployed automatically
+- **PR validation**: Pull requests run `tofu plan` for infrastructure review
+- **Secure**: Secrets stored in GitHub, not on your machine
+- **Repeatable**: Every deploy uses the same workflow
+
+### One-Time Setup
+
+#### 1. Get Cloudflare Credentials
+
+**Cloudflare API Token** (required for both Terraform and Wrangler):
+1. Go to [Cloudflare Dashboard → API Tokens](https://dash.cloudflare.com/profile/api-tokens)
+2. Click **Create Token**
+3. Permissions:
+   - `Workers Routes:Edit`
+   - `Workers Scripts:Edit`
+   - `Workers KV Storage:Edit`
+   - `Zone:Edit`
+   - `DNS:Edit`
+4. Zone Resources: `Include → Specific zone → oghamconsults.cc` (or your domain)
+5. **Copy the token** — you'll only see it once
+
+**R2 API Token** (for Terraform backend state storage):
+1. Go to [R2 → Manage R2 API Tokens](https://dash.cloudflare.com/profile/api-tokens?product=r2)
+2. Click **Create API Token**
+3. Permissions: `Object Read & Write`
+4. Scope: `Apply to all buckets` (bucket will be created by CI)
+5. **Copy the Access Key ID and Secret Access Key**
+
+**Cloudflare Account ID**:
+1. Go to [Cloudflare Dashboard → Workers & Pages](https://dash.cloudflare.com)
+2. Find your **Account ID** in the right sidebar
+
+**GitHub Personal Access Token** (for worker's GitHub API calls):
+1. Go to [GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens](https://github.com/settings/tokens?type=beta)
+2. Click **Generate new token**
+3. Repository access: `Public Repositories (read-only)`
+4. Permissions: `Metadata: Read-only`
+5. **Copy the token**
+
+**Google DKIM Record** (optional, if using Google Workspace email):
+1. Go to [admin.google.com → Apps → Gmail → Authenticate email](https://admin.google.com/ac/apps/gmail/authenticateemail)
+2. Generate new record for your domain
+3. **Copy the full DKIM value** (format: `v=DKIM1; k=rsa; p=...`)
+
+#### 2. Add GitHub Repository Secrets
+
+Go to your repository **Settings → Secrets and variables → Actions**.
+
+**Required Secrets** (click "New repository secret"):
+
+| Secret Name | Value | Where to Get It |
+|-------------|-------|-----------------|
+| `CLOUDFLARE_API_TOKEN` | Your Cloudflare API token | Step 1 above |
+| `R2_ACCESS_KEY_ID` | R2 Access Key ID | Step 1 above |
+| `R2_SECRET_ACCESS_KEY` | R2 Secret Access Key | Step 1 above |
+| `WORKER_GITHUB_TOKEN` | GitHub PAT | Step 1 above |
+| `GOOGLE_DKIM_RECORD` | Google DKIM record (optional) | Step 1 above |
+
+**Required Variables** (click "Variables" tab, then "New repository variable"):
+
+| Variable Name | Value | Where to Get It |
+|---------------|-------|-----------------|
+| `CLOUDFLARE_ACCOUNT_ID` | Your Cloudflare account ID | Step 1 above |
+
+#### 3. Push to `main` Branch
+
+That's it! Every push to `main` will:
+1. Create R2 bucket `portfolio-tfstate` (idempotent)
+2. Configure Terraform backend with your account ID
+3. Run `tofu init` and `tofu apply`
+4. Extract KV namespace ID from Terraform outputs
+5. Update `wrangler.toml` with KV namespace ID
+6. Set worker secrets via `wrangler secret put`
+7. Deploy worker via `wrangler deploy`
+
+**For Pull Requests**: GitHub Actions runs `tofu plan` and posts the infrastructure changes as a PR comment.
+
+### Manual Trigger
+
+You can also trigger deployment manually:
+1. Go to **Actions** tab in GitHub
+2. Click **Deploy Portfolio** workflow
+3. Click **Run workflow** → select `main` branch
+4. Click **Run workflow**
+
+### Monitoring Deployments
+
+- **GitHub Actions tab**: View workflow runs and logs
+- **Cloudflare Dashboard → Workers & Pages**: See deployed worker
+- **Cloudflare Dashboard → R2**: View Terraform state bucket
+
+---
+
+## Quick Start (Local Development)
 
 ### 1. Clone & Install
 
@@ -93,7 +193,9 @@ asdf install
 cd site && npm install && cd ..
 ```
 
-### 2. Bootstrap Cloudflare Infrastructure
+### 2. Bootstrap Cloudflare Infrastructure (Optional)
+
+**Note**: This script is for local development only. If using GitHub Actions, skip this step.
 
 Set your Cloudflare Account ID:
 
@@ -367,21 +469,6 @@ If using Google Workspace for email (`contact@oghamconsults.cc`), the terraform 
 1. admin.google.com → Apps → Gmail → Authenticate email
 2. Generate new record for your domain
 3. Copy the `v=DKIM1; k=rsa; p=...` value to `terraform.tfvars`
-
----
-
-## GitHub Actions CI/CD (Optional)
-
-The repo includes `.github/workflows/deploy.yml` for automated deployments, but it's **commented out by default** (requires GitHub secrets setup).
-
-To enable:
-1. Uncomment the workflow file
-2. Add repository secrets:
-   - `CLOUDFLARE_API_TOKEN`
-   - `CLOUDFLARE_ACCOUNT_ID`
-   - `R2_ACCESS_KEY_ID`
-   - `R2_SECRET_ACCESS_KEY`
-3. Push to `main` branch → auto-deploy
 
 ---
 
