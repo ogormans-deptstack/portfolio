@@ -7,6 +7,8 @@ const SECURITY_HEADERS = {
   "Content-Security-Policy":
     "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://github-readme-stats.vercel.app; font-src 'self' data:; connect-src 'self'",
   "X-DNS-Prefetch-Control": "off",
+  "Cross-Origin-Opener-Policy": "same-origin",
+  "Cross-Origin-Resource-Policy": "same-origin",
 };
 
 export default {
