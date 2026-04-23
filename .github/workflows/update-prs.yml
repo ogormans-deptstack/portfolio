@@ -9,6 +9,10 @@ on:
     types: [completed]
     branches: [main]
 
+concurrency:
+  group: update-prs
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -20,24 +24,29 @@ env:
 
 jobs:
   update:
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - name: Fetch PRs via GitHub CLI
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          set -euo pipefail
+
           IFS=',' read -ra USERNAMES <<< "$GITHUB_USERNAMES"
           all_prs="[]"
           cutoff=$(date -d "-${STALE_DAYS} days" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -v-${STALE_DAYS}d +%Y-%m-%dT%H:%M:%SZ)
+          successful_fetches=0
 
           for username in "${USERNAMES[@]}"; do
             username=$(echo "$username" | xargs)
-            prs=$(gh api -X GET "search/issues" \
+
+            if prs=$(gh api --paginate -X GET "search/issues" \
               -f q="author:${username} type:pr" \
               -f sort=updated \
               -f order=desc \
-              -f per_page=20 \
-              --jq '.items | map({
+              -f per_page=100 \
+              --jq '.items[] | {
                 title: .title,
                 url: .html_url,
                 repo: (.repository_url | split("/") | .[-2:] | join("/")),
@@ -46,10 +55,21 @@ jobs:
                 updated: .updated_at,
                 merged: (.pull_request.merged_at // null),
                 comments: .comments
-              })' 2>/dev/null || echo "[]")
+              } | @json'); then
+              prs=$(printf '%s\n' "$prs" | jq -s '.')
+              successful_fetches=$((successful_fetches + 1))
+            else
+              echo "Failed to fetch PRs for ${username}" >&2
+              prs="[]"
+            fi
 
             all_prs=$(echo "$all_prs" "$prs" | jq -s '.[0] + .[1]')
           done
+
+          if [ "$successful_fetches" -eq 0 ]; then
+            echo "Unable to fetch PR data for any configured GitHub user" >&2
+            exit 1
+          fi
 
           IFS=',' read -ra FILTERED <<< "$FILTERED_REPOS"
           filter_expr=$(printf '"%s",' "${FILTERED[@]}")
@@ -64,8 +84,8 @@ jobs:
 
           merged=$(echo "$prs" | jq '[.[] | select(.state == "merged" and .merged != null)] | sort_by(.merged) | reverse')
 
-          echo "$prs" > /tmp/github-prs.json
-          echo "$merged" > /tmp/merged-prs.json
+          printf '%s\n' "$prs" > /tmp/fresh-github-prs.json
+          printf '%s\n' "$merged" > /tmp/fresh-merged-prs.json
 
           echo "Total PRs: $(echo "$prs" | jq length)"
           echo "Merged PRs: $(echo "$merged" | jq length)"
@@ -75,7 +95,34 @@ jobs:
           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CF_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
         run: |
+          set -euo pipefail
+
           kv_url="https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/storage/kv/namespaces/${KV_NAMESPACE_ID}/values"
+
+          existing_prs=$(curl -fsS "${kv_url}/github-prs" \
+            -H "Authorization: Bearer ${CF_API_TOKEN}" \
+            -H "Content-Type: application/json" || printf '[]')
+
+          fresh_prs=$(cat /tmp/fresh-github-prs.json)
+          cutoff=$(date -d "-${STALE_DAYS} days" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -v-${STALE_DAYS}d +%Y-%m-%dT%H:%M:%SZ)
+          IFS=',' read -ra FILTERED <<< "$FILTERED_REPOS"
+          filter_expr=$(printf '"%s",' "${FILTERED[@]}")
+          filter_expr="[${filter_expr%,}]"
+
+          prs=$(printf '%s\n%s\n' "$existing_prs" "$fresh_prs" | jq -s --argjson filtered "$filter_expr" --arg cutoff "$cutoff" '
+            add
+            | map({key: .url, value: .})
+            | from_entries
+            | [.[]]
+            | map(select(.repo as $r | $filtered | index($r) | not))
+            | map(select(.state != "open" or (.updated > $cutoff)))
+            | sort_by(.updated) | reverse
+          ')
+
+          merged_payload=$(printf '%s\n' "$prs" | jq '{prs: [.[] | select(.state == "merged" and .merged != null)] | sort_by(.merged) | reverse}')
+
+          printf '%s\n' "$prs" > /tmp/github-prs.json
+          printf '%s\n' "$merged_payload" > /tmp/merged-payload.json
 
           curl -sf -X PUT "${kv_url}/github-prs" \
             -H "Authorization: Bearer ${CF_API_TOKEN}" \
@@ -83,9 +130,6 @@ jobs:
             --data @/tmp/github-prs.json
 
           echo "Wrote github-prs to KV"
-
-          merged_payload=$(jq -n --slurpfile prs /tmp/merged-prs.json '{prs: $prs[0]}')
-          echo "$merged_payload" > /tmp/merged-payload.json
 
           curl -sf -X PUT "${kv_url}/merged-prs" \
             -H "Authorization: Bearer ${CF_API_TOKEN}" \

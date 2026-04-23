@@ -17,25 +17,25 @@
 │ ├─ www → apex redirect (301)            │
 │ ├─ Static assets (HTML/CSS/JS)          │
 │ ├─ /api/prs (live GitHub PR feed)       │
-│ ├─ /api/merged (AI-generated timeline)  │
+│ ├─ /api/merged (merged PR timeline)     │
 │ └─ Security headers (CSP, HSTS, etc.)   │
 └─────────────────────────────────────────┘
          │                  │
          ▼                  ▼
 ┌──────────────────┐ ┌───────────────────┐
-│ KV Store         │ │ Workers AI        │
-│ • PR cache       │ │ • IBM Granite     │
-│ • AI blurb cache │ │   Micro (1B)      │
-│ TTL: 24h         │ │ • 2-3 sentence    │
-└──────────────────┘ │   narrative       │
-         ▲           └───────────────────┘
+│ KV Store         │
+│ • PR cache       │
+│ • Merged timeline│
+│ • Persistent sync│
+└──────────────────┘
+         ▲
          │
 ┌──────────────────────────────────────────┐
-│ Cron Trigger (every 6 hours)             │
+│ GitHub Actions (every 4 hours + deploy)  │
 │ ├─ Fetch PRs from GitHub API             │
+│ ├─ Merge with existing KV snapshot       │
 │ ├─ Filter merged contributions           │
-│ ├─ Generate AI summary if changed        │
-│ └─ Cache in KV                            │
+│ └─ Write safe updates to KV              │
 └──────────────────────────────────────────┘
 ```
 
@@ -48,7 +48,7 @@
 ### Portfolio Site
 - **Dark industrial theme** with ogham alphabet accents (Irish heritage, minimal)
 - **Live OSS contributions** from GitHub (real-time PR feed)
-- **AI-generated contribution timeline** (Workers AI summarizes merged PRs)
+- **Merged contribution timeline** sourced from GitHub PR data in KV
 - **Responsive design** — mobile-first, semantic HTML
 - **Security**: CSP, HSTS, X-Frame-Options, Referrer-Policy
 - **Performance**: <1KB JavaScript, minified CSS/JS/HTML via Cloudflare
@@ -61,7 +61,6 @@
 
 ### Free Tier Usage
 - **Cloudflare Workers**: 100K requests/day (actual: <1K)
-- **Workers AI**: 10K neurons/day (actual: ~2-3K for 4 cron runs)
 - **KV Storage**: 100K reads, 1K writes/day (actual: <100 total)
 - **R2 Storage**: 10GB, 1M ops/month (actual: ~50KB state file, <500 ops/month)
 - **DNS**: Unlimited
@@ -112,7 +111,6 @@ Use an **Account API Token** (not a User token). Account tokens act as service p
 | Account | Workers Scripts | Edit | Deploy worker code via Wrangler |
 | Account | Workers KV Storage | Edit | Create/manage KV namespace for PR cache |
 | Account | Workers R2 Storage | Edit | Wrangler R2 bucket operations |
-| Account | Workers AI | Edit | Bind IBM Granite model to worker |
 | Account | Account Settings | Read | Wrangler needs account-level metadata |
 | Zone | DNS | Edit | Create/update MX, SPF, DMARC, DKIM records |
 | Zone | Zone | Read | Read zone config during `tofu plan` |
@@ -155,13 +153,6 @@ Both should return `"success": true`. If the verify call fails, double-check the
 1. Go to [Cloudflare Dashboard → Workers & Pages](https://dash.cloudflare.com)
 2. Find your **Account ID** in the right sidebar
 
-**GitHub Personal Access Token** (for worker's GitHub API calls):
-1. Go to [GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens](https://github.com/settings/tokens?type=beta)
-2. Click **Generate new token**
-3. Repository access: `Public Repositories (read-only)`
-4. Permissions: `Metadata: Read-only`
-5. **Copy the token**
-
 **Google DKIM Record** (optional, if using Google Workspace email):
 1. Go to [admin.google.com → Apps → Gmail → Authenticate email](https://admin.google.com/ac/apps/gmail/authenticateemail)
 2. Generate new record for your domain
@@ -177,7 +168,6 @@ Go to your repository **Settings → Secrets and variables → Actions**.
 |-------------|-------|-----------------|
 | `CLOUDFLARE_API_TOKEN` | Your Cloudflare API token | Step 1 above |
 | `TF_ENCRYPTION_KEY` | Encryption key for Terraform state | Generate with `openssl rand -base64 32` |
-| `WORKER_GITHUB_TOKEN` | GitHub PAT | Step 1 above |
 | `GOOGLE_DKIM_RECORD` | Google DKIM record (optional) | Step 1 above |
 
 **Required Variables** (click "Variables" tab, then "New repository variable"):
@@ -194,7 +184,6 @@ That's it! Every push to `main` will:
 3. Run `tofu init` and `tofu apply`
 4. Extract KV namespace ID from Terraform outputs
 5. Update `wrangler.toml` with KV namespace ID
-6. Set worker secrets via `wrangler secret put`
 7. Deploy worker via `wrangler deploy`
 
 **For Pull Requests**: GitHub Actions runs `tofu plan` and posts the infrastructure changes as a PR comment.
@@ -249,8 +238,8 @@ Run the bootstrap script:
 
 This will:
 1. Create R2 bucket `portfolio-tfstate` for Terraform state
-2. Prompt for GitHub PAT (readonly, for PR fetching)
-3. Set Worker secret via `wrangler secret put`
+2. Confirm the Cloudflare account and zone values for local deploys
+3. Leave GitHub PR sync to GitHub Actions after deploy
 
 ### 3. Configure OpenTofu
 
@@ -307,8 +296,8 @@ tofu apply
 This creates:
 - Cloudflare zone for your domain
 - DNS records (MX, SPF, DMARC, DKIM for Google Workspace email)
-- Workers script with KV + AI bindings
-- Cron trigger (every 6 hours)
+- Workers script with KV binding
+- GitHub Actions sync (every 4 hours, plus after deploy)
 - Custom domains (apex + www)
 
 ### 5. Deploy Worker Code
@@ -351,15 +340,7 @@ wrangler dev
 
 Open http://localhost:8787
 
-**Note**: AI binding and cron triggers don't work in local dev. Use `wrangler dev --remote` to test against production bindings.
-
-### Trigger Cron Manually
-
-```bash
-wrangler dev --test-scheduled
-# In another terminal:
-curl "http://localhost:8787/__scheduled?cron=0+*/6+*+*+*"
-```
+**Note**: Local dev serves the Worker and static assets, but GitHub Actions remains the PR sync writer for KV data.
 
 ### Check Worker Logs
 
@@ -371,22 +352,9 @@ wrangler tail
 
 ## Secrets Management
 
-All secrets are managed via Wrangler CLI (NOT in Terraform state):
+GitHub Actions owns deployment-time secrets. Local Wrangler secrets are optional and only needed if you add extra runtime secrets in the future.
 
 ```bash
-# Set individual secret
-wrangler secret put GITHUB_TOKEN
-
-# Bulk upload from JSON
-cat > secrets.json <<EOF
-{
-  "GITHUB_TOKEN": "ghp_...",
-  "GOOGLE_DKIM_RECORD": "v=DKIM1; k=rsa; p=..."
-}
-EOF
-wrangler secret bulk secrets.json
-rm secrets.json
-
 # List secrets (names only, values encrypted)
 wrangler secret list
 
@@ -394,8 +362,8 @@ wrangler secret list
 wrangler secret delete SECRET_NAME
 ```
 
-**Required secrets**:
-- `GITHUB_TOKEN` — Fine-grained PAT with public repo read access (for PR API rate limits)
+**Required local secrets**:
+- None for the current Worker runtime. GitHub Actions handles PR sync and deployment credentials.
 
 **Terraform variables** (in `terraform.tfvars`):
 - `cloudflare_api_token` — Cloudflare API token
@@ -411,7 +379,7 @@ portfolio/
 │   ├── terraform.tf          # Backend (HTTP/R2) + providers + encryption
 │   ├── variables.tf          # Input variables
 │   ├── dns.tf                # Cloudflare zone + DNS records
-│   ├── worker.tf             # Workers script, KV, cron, domains
+│   ├── worker.tf             # Workers script, KV, and domains
 │   ├── outputs.tf            # Nameservers, URLs, IDs
 │   └── terraform.tfvars      # Secret values (gitignored)
 ├── site/
@@ -421,7 +389,7 @@ portfolio/
 │   │   ├── 404.html          # Custom 404
 │   │   └── fonts/            # Noto Sans Ogham (OFL 1.1)
 │   ├── src/
-│   │   └── worker.mjs        # Cloudflare Worker (API + cron)
+│   │   └── worker.mjs        # Cloudflare Worker (API + asset routing)
 │   ├── wrangler.toml         # Worker config
 │   ├── package.json          # wrangler dependency
 │   └── .npmrc                # Supply chain hardening
@@ -452,7 +420,6 @@ make bootstrap    # Run bootstrap script
 | Service | Free Tier | Usage | Cost |
 |---------|-----------|-------|------|
 | **Cloudflare Workers** | 100K req/day | ~500/day | $0 |
-| **Workers AI** | 10K neurons/day | ~2-3K/day | $0 |
 | **KV Storage** | 100K reads, 1K writes/day | <100 total | $0 |
 | **R2 Storage** | 10GB, 1M ops/month | 50KB, <500 ops | $0 |
 | **DNS** | Unlimited | 9 records | $0 |
@@ -462,30 +429,16 @@ make bootstrap    # Run bootstrap script
 
 ---
 
-## AI Blurb Generation
+## PR Sync Behavior
 
-Every 6 hours, the Worker:
-1. Fetches PRs from GitHub API (`ogormans-deptstack` account)
-2. Filters to merged PRs only, sorted by merge date
-3. Generates a fingerprint (URL hash) to detect changes
-4. If changed, calls Workers AI with IBM Granite Micro (1B params)
-5. Caches the 2-3 sentence narrative in KV
+Every 4 hours, and after each successful deploy, GitHub Actions:
+1. Fetches PRs authored by `ogormans-deptstack`
+2. Paginates through the GitHub Search API result set
+3. Merges fresh results into the existing KV snapshot by PR URL
+4. Filters stale open PRs and excluded repositories
+5. Writes `github-prs` and `merged-prs` back to Cloudflare KV
 
-**Model**: `@cf/ibm-granite/granite-4.0-h-micro` (cheapest LLM, 1,542 neurons/M input tokens)
-
-**Prompt**:
-```
-System: Write a concise 2-3 sentence narrative summarizing open source contributions.
-        Use a professional but approachable tone. Mention specific projects by name.
-        Do not use bullet points. Do not start with 'I'. Write in third person.
-
-User: Summarize these merged open source pull requests:
-      - kubernetes/kubernetes: kubectl explain --example
-      - opentofu/opentofu: Pretty-print local state
-      ...
-```
-
-**Cost**: ~2-3K neurons/day (4 cron runs × ~500-700 neurons/call) = **well within 10K free tier**
+This keeps the Worker read-only while preventing older PR entries from being dropped during sync.
 
 ---
 
@@ -527,14 +480,15 @@ If using Google Workspace for email (`contact@oghamconsults.cc`), the terraform 
 3. Update `site/wrangler.toml` with the actual ID
 4. Run `wrangler deploy`
 
-### AI blurb not generating
+### PR timeline looks stale
 
-**Cause**: AI binding not configured or cron not running.
+**Cause**: The GitHub Actions sync workflow has not run yet, failed, or is still using an old deploy.
 
 **Fix**:
-1. Check `tofu apply` created the AI binding: `tofu state show cloudflare_workers_script.portfolio`
-2. Manually trigger cron: `wrangler dev --test-scheduled` → `curl "http://localhost:8787/__scheduled"`
-3. Check logs: `wrangler tail`
+1. Check the **Update PR Data** workflow in GitHub Actions
+2. Trigger it manually with **Run workflow** if needed
+3. Confirm the latest run updated `github-prs` and `merged-prs`
+4. If you changed the workflow locally, push to `main` so CI redeploys it
 
 ### Domain not resolving
 
@@ -558,8 +512,7 @@ If using Google Workspace for email (`contact@oghamconsults.cc`), the terraform 
 ## Credits
 
 - **Ogham font**: [Noto Sans Ogham](https://github.com/notofonts/ogham) by Google Fonts
-- **Workers AI**: [IBM Granite Micro](https://www.ibm.com/granite) (1B parameter LLM)
-- **Infrastructure**: Cloudflare Workers, R2, KV, DNS, AI
+- **Infrastructure**: Cloudflare Workers, R2, KV, DNS
 - **IaC**: OpenTofu (Terraform fork)
 
 ---

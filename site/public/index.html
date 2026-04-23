@@ -187,7 +187,6 @@
         <span class="section-num">04.</span>
         <h2>Merged Contributions</h2>
       </div>
-      <div id="merged-blurb" class="timeline-blurb"></div>
       <div id="merged-list" class="timeline-list"></div>
       <div id="merged-empty" class="empty-state" style="display:none;">
         <p class="mono text-muted">Merged contributions will appear here as PRs land. Work in progress above.</p>
@@ -251,17 +250,12 @@
       .catch(function () {});
   }
 
-  var blurbEl = document.getElementById("merged-blurb");
   var listEl = document.getElementById("merged-list");
   var mergedEmpty = document.getElementById("merged-empty");
-  if (blurbEl && listEl) {
+  if (listEl) {
     fetch("/api/merged")
       .then(function (r) { return r.json(); })
       .then(function (data) {
-        if (data.blurb) {
-          blurbEl.innerHTML = '<p class="blurb-text">' + data.blurb + '</p>'
-            + '<span class="blurb-label">AI-generated summary</span>';
-        }
         var prs = data.prs || [];
         if (!prs.length) {
           mergedEmpty.style.display = "block";
