@@ -151,12 +151,7 @@ Both should return `"success": true`. If the verify call fails, double-check the
 
 **Cloudflare Account ID**:
 1. Go to [Cloudflare Dashboard → Workers & Pages](https://dash.cloudflare.com)
-2. Find your **Account ID** in the right sidebar
-
-**Google DKIM Record** (optional, if using Google Workspace email):
-1. Go to [admin.google.com → Apps → Gmail → Authenticate email](https://admin.google.com/ac/apps/gmail/authenticateemail)
-2. Generate new record for your domain
-3. **Copy the full DKIM value** (format: `v=DKIM1; k=rsa; p=...`)
+2. Find your **Account ID** in the right 
 
 #### 2. Add GitHub Repository Secrets
 
